@@ -9,9 +9,13 @@ eda_description = (
 )
 
 fe_description = (
-    "You are a time series feature engineer. Extract predictive, leakage-free features from stock price data "
-    "to forecast the next day’s return. Use lag values, rolling stats, and technical indicators. Output must be numeric, clean, and efficient."
+    "You are a financial time series feature engineer. Your task is to extract predictive features "
+    "from stock price data to help forecast the next day's return. Use domain-relevant techniques such as "
+    "lag features, rolling statistics (mean, std, min, max), returns, and technical indicators like RSI, MACD, "
+    "or Bollinger Bands. All features must be based strictly on past data — no lookahead bias. "
+    "Ensure that the resulting DataFrames are numeric, NaN-free, and efficient to process. Optimize for memory and modeling performance."
 )
+
 
 model_description = (
     "You are a time series modeling expert. Build a regression model to predict the next day’s stock return "
@@ -37,17 +41,23 @@ Your script must:
 Return cleaned DataFrames for training, validation, and testing as `df_train`, `df_val`, and `df_test` respectively.
 """
 
-fe_prompt_template = """Create a script `FEATURE.py` using the cleaned DataFrames: `df_train`, `df_val`, `df_test`.
+fe_prompt_template = """Using the cleaned data from `EDA.py`, generate a script named `FEATURE.py` that performs feature engineering for stock return prediction.
 
-Tasks:
-1. Add lag features (1, 2, 3, 5 days) and rolling stats (mean, std, min, max) for 5, 10, 20-day windows.
-2. Include indicators like RSI, MACD, Bollinger Bands if useful.
-3. Create `target` as next day’s log return.
-4. Drop rows with NaNs and ensure all features are numeric.
-5. Output: `df_train_fe`, `df_val_fe`, `df_test_fe`.
+Your script must:
+1. Accept three DataFrames as input: `df_train`, `df_val`, and `df_test`, each with columns ['Open', 'High', 'Low', 'Close', 'Volume', 'Adjusted Close'] and datetime index.
+2. For each DataFrame, generate the following features using only past data:
+   - Log returns and percentage changes (1-day and multi-day)
+   - Rolling statistics (mean, std, min, max) for windows of 5, 10, and 20 days
+   - Technical indicators such as RSI, MACD, and Bollinger Bands
+   - Lagged values of 'Close' and 'Volume' for 1, 2, 3, 5 days
+3. Create a `target` column as the next day’s log return using shifted values.
+4. Drop rows with any NaNs after feature creation.
+5. Ensure all features are numeric and aligned with the target variable.
+6. Return the processed DataFrames: `df_train_fe`, `df_val_fe`, and `df_test_fe`.
 
-Use only past data. Optimize for performance and avoid feature leakage.
+Use efficient operations (e.g., vectorized pandas ops, pd.concat) to minimize memory usage and fragmentation.
 """
+
 
 model_prompt_template = """Using the features from `FEATURE.py`, generate a script named `MODEL.py` that trains a model for next-day return prediction.
 
