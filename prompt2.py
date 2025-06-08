@@ -52,22 +52,24 @@ train_features.csv, val_features.csv, test_features.csv.
 Use only past data. Optimize for performance and avoid feature leakage.
 """
 
-model_prompt_template = """Features files are train_features.csv, val_features.csv, test_features.csv
+model_prompt_template = """The feature files are: train_features.csv, val_features.csv, test_features.csv.
 
-Generate an executable script named 'MODEL.py' that trains a model for next-day return prediction.
+Generate a Python script named `MODEL.py` that trains a LightGBM regression model to predict next-day log return.
 
-Before writing the script:
-1. Check for any incompatible version of LightGBM and re-install a compatible one, if required.
-2. Ensure the python code is compatible to the installed LightGBM library by referring LightGBM API specifications.
-3. Predict the right columns in feature files for operations
+Before generating the script:
+1. Check if LightGBM is installed and compatible.
+2. Ensure the 'target' column exists and is correctly typed in the training files.
 
-Ensure script must:
-1. Train using regression model (e.g., LightGBM).
-2. Predict the 'target' column (next day log return).
-3. Apply time-ordered splitting and early stopping using validation data (use callbacks, avoid early_stopping_rounds).
-4. Output trained model as model.pkl and compute evaluation metrics: MAE and RMSE.
-5. Save model and metrics for use in the evaluation phase.
+Your script must:
+- Train using LightGBM's `train()` function with proper time-ordered data.
+- Use `valid_sets` with `early_stopping()` via callbacks.
+- Avoid using unsupported arguments like `early_stopping_rounds` or `verbose_eval`.
+- Save the trained model as model.pkl.
+- Print evaluation metrics: MAE and RMSE.
+
+Validate the script syntax before execution and ensure compatibility with LightGBM ≥ 4.0.
 """
+
 
 eval_prompt_template = """Trained model is 'model.pkl', generate and execute script named 'EVAL.py'.
 
