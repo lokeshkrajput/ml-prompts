@@ -1,12 +1,23 @@
-# ─── EDA (force modern ffill / bfill) ─────────────────────────────────────
 eda_description = """
-You are a Python best-practices expert and EDA specialist.
+You are a Python-best-practices EDA specialist.
 
-Required behaviour
-- Never call DataFrame.fillna(method=…).  Instead:
-      df = df.ffill().bfill()
-- All other steps stay as before (date parsing if present, duplicates, down-cast,
-  drop >30 % missing cols, save *_clean.csv, print schema, sys.exit(1) on error).
+Hard rules
+A. The script must never call df.fillna() – use df.ffill() followed by df.bfill().
+B. The script must never call pd.to_datetime with errors="ignore" – use errors="coerce"
+   and then drop rows where the parsed index is NaT.
+
+Full workflow
+1  Read TRAIN / VAL / TEST CSVs (paths come from the template).
+2  If a column named date (case-insensitive) exists, parse it as datetime with
+      df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+   set it as index, sort ascending, then drop rows whose index is NaT.
+3  Remove duplicate rows and columns that contain a single distinct value.
+4  Down-cast numeric columns to float32 / int32.
+5  Drop columns with >30 % missing values.
+6  Forward-fill then back-fill remaining gaps with df.ffill().bfill().
+7  Save train_clean.csv, val_clean.csv, test_clean.csv.
+8  Print one-line schema summaries; wrap all code in try/except and call
+   sys.exit(1) on fatal error.
 """
 
 eda_prompt_template = """
@@ -14,39 +25,43 @@ TRAIN = {train_csv}
 VAL   = {val_csv}
 TEST  = {test_csv}
 
-Create EDA.py that follows every line in the description.  **Insert an assert
-after cleaning that .fillna(  does NOT appear in the script itself** (so the LLM
-cannot sneak it back in).
+Write EDA.py that **strictly follows every line of the description**.
+The generated file must raise AssertionError at the end of __main__
+if the substrings ".fillna(" or 'errors="ignore"' appear anywhere in
+its own source code (self-inspection step).
 """
 
-# ─── FEATURE ENGINEERING (robust price detection) ────────────────────────
+
 fe_description = """
-You are a Python best-practices expert and feature-engineering specialist.
+You are a Python-best-practices time-series feature engineer.
 
-Price-series selection logic
-1. If a column named Close (case-insensitive) exists → use it.
-2. Else if Adjusted_close / Adj_Close exists → use it.
-3. Else if exactly one numeric column appears aside from Volume or target → use that.
-4. Otherwise print an error and sys.exit(1).
+Price-series detection (execute in this order)
+1.  Use column named Close (case-insensitive) if present.
+2.  Else use Adjusted_close or Adj_Close.
+3.  Else, if exactly one numeric column besides Volume and target exists, use it.
+4.  Otherwise print an error and sys.exit(1).
 
-Technical indicators
-- First try import talib
-- Else try import pandas_ta
-- Else compute indicators manually (vectorised pandas / numpy).  No pip installs.
+Mandatory features
+• Lags 1 2 3 5 (price and volume)  
+• Rolling mean std min max over 5 10 20 days  
+• RSI-14, MACD 12-26-9, Bollinger Bands 20-2  
+• Calendar day_of_week, month, year
 
-Features to create remain: price & volume lags 1,2,3,5; rolling mean/std/min/max
-over 5,10,20; RSI-14, MACD 12-26-9, BB 20-2; calendar d-o-w, month, year.
+Indicator back-ends
+Attempt import talib; if that fails try pandas_ta; if that also fails compute
+indicators manually – **no pip install commands**.
 
-Output files train_features.csv, val_features.csv, test_features.csv must share
-identical column order & dtype; drop rows that became NaN; print shape + memory;
-sys.exit(1) on fatal error.
+Outputs
+train_features.csv, val_features.csv, test_features.csv with identical column
+order & dtype, numeric float32 only; drop rows that become NaN; print shape and
+memory usage; sys.exit(1) on fatal error.
 """
 
 fe_prompt_template = """
-Generate FEATURE.py that exactly implements the description.  **Add an assert
-that the string '\"price\"' does NOT appear anywhere in the script** so the agent
-cannot hard-code that name again.
+Generate FEATURE.py that follows the description exactly.
+Add a self-check at the bottom: assert the string '"price"' is not in the file.
 """
+
 
 
 # ========== 3. MODELLING AGENT ==========
