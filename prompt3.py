@@ -1,17 +1,12 @@
-# ========== 1. EDA AGENT ==========
+# ─── EDA (force modern ffill / bfill) ─────────────────────────────────────
 eda_description = """
-You are a Python best-practices expert and EDA specialist.  Clean raw stock-price
-data so downstream agents receive tidy, memory-efficient CSV files.
+You are a Python best-practices expert and EDA specialist.
 
-Steps: read the TRAIN, VAL and TEST CSVs whose paths are supplied in the
-template; if a column named “date” (case-insensitive) exists then parse it as
-datetime, set it as the index and sort ascending, otherwise skip this step;
-remove duplicate rows and columns that have a single distinct value; down-cast
-numerical columns to float32 or int32; drop columns with more than 30 percent
-missing values and forward-fill then back-fill the remaining gaps; save the
-files train_clean.csv, val_clean.csv and test_clean.csv; print for each split a
-one-line schema summary showing column name, dtype and row count; wrap the code
-in try-except and call sys.exit(1) on any fatal error.
+Required behaviour
+- Never call DataFrame.fillna(method=…).  Instead:
+      df = df.ffill().bfill()
+- All other steps stay as before (date parsing if present, duplicates, down-cast,
+  drop >30 % missing cols, save *_clean.csv, print schema, sys.exit(1) on error).
 """
 
 eda_prompt_template = """
@@ -19,35 +14,40 @@ TRAIN = {train_csv}
 VAL   = {val_csv}
 TEST  = {test_csv}
 
-Create EDA.py that implements every step in the description and nothing more.
+Create EDA.py that follows every line in the description.  **Insert an assert
+after cleaning that .fillna(  does NOT appear in the script itself** (so the LLM
+cannot sneak it back in).
 """
 
-# ========== 2. FEATURE-ENGINEERING AGENT ==========
+# ─── FEATURE ENGINEERING (robust price detection) ────────────────────────
 fe_description = """
-You are a Python best-practices expert and feature-engineering specialist for
-time-series data.  Produce leakage-free numeric float32 features for next-day
-log-return prediction.
+You are a Python best-practices expert and feature-engineering specialist.
 
-Mandatory features are price and volume lags of 1, 2, 3 and 5 days; rolling
-mean, standard deviation, minimum and maximum over 5, 10 and 20 day windows;
-technical indicators RSI-14, MACD with periods 12, 26 and 9, and Bollinger
-Bands with window 20 and width 2; calendar features day_of_week, month and
-year.
+Price-series selection logic
+1. If a column named Close (case-insensitive) exists → use it.
+2. Else if Adjusted_close / Adj_Close exists → use it.
+3. Else if exactly one numeric column appears aside from Volume or target → use that.
+4. Otherwise print an error and sys.exit(1).
 
-First attempt import talib; if that fails fall back to pandas_ta; if that also
-fails compute the indicators manually with pandas or numpy; do not issue pip
-install commands, simply log which method is selected.
+Technical indicators
+- First try import talib
+- Else try import pandas_ta
+- Else compute indicators manually (vectorised pandas / numpy).  No pip installs.
 
-Write train_features.csv, val_features.csv and test_features.csv with identical
-column order and dtype; drop rows that become NaN after feature creation; print
-the shape and memory usage of each output; call sys.exit(1) on fatal error.
+Features to create remain: price & volume lags 1,2,3,5; rolling mean/std/min/max
+over 5,10,20; RSI-14, MACD 12-26-9, BB 20-2; calendar d-o-w, month, year.
+
+Output files train_features.csv, val_features.csv, test_features.csv must share
+identical column order & dtype; drop rows that became NaN; print shape + memory;
+sys.exit(1) on fatal error.
 """
 
 fe_prompt_template = """
-Input files: train_clean.csv, val_clean.csv, test_clean.csv.
-
-Create FEATURE.py that follows the description exactly.
+Generate FEATURE.py that exactly implements the description.  **Add an assert
+that the string '\"price\"' does NOT appear anywhere in the script** so the agent
+cannot hard-code that name again.
 """
+
 
 # ========== 3. MODELLING AGENT ==========
 model_description = """
