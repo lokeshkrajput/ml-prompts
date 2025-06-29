@@ -1,0 +1,2 @@
+Tuned 30 Optuna trials across 9 algorithms in 148 s using 3-fold walk-forward CV. Best individual model (HistGBR) achieved CV RMSE 0.2241; stacking the top-3 shaved this to 0.2193 on unseen test data. 
+Final ensemble saved to model.joblib (seed 42, 1.6 MB) for reproducible scoring.
